@@ -2,9 +2,9 @@
 
 use rocket_contrib::json::Json;
 use serde::{Deserialize, Serialize};
-use std::io::Result;
 use std::sync::Mutex;
 use std::{thread, time};
+use visca::{Camera, Result};
 
 #[macro_use]
 extern crate rocket;
@@ -26,7 +26,7 @@ struct CameraStateRequest {
 }
 
 #[get("/state")]
-fn get_state(camera: rocket::State<Mutex<visca::Camera>>) -> Result<Json<CameraStateResponse>> {
+fn get_state(camera: rocket::State<Mutex<Camera>>) -> Result<Json<CameraStateResponse>> {
     let mut cam = camera.lock().unwrap();
 
     cam.pan_tilt().get().map(|state| {
@@ -41,7 +41,7 @@ fn get_state(camera: rocket::State<Mutex<visca::Camera>>) -> Result<Json<CameraS
 
 #[patch("/state", format = "json", data = "<new_state>")]
 fn patch_state(
-    camera: rocket::State<Mutex<visca::Camera>>,
+    camera: rocket::State<Mutex<Camera>>,
     new_state: Json<CameraStateRequest>,
 ) -> Result<Json<CameraStateResponse>> {
     let mut cam = camera.lock().unwrap();
@@ -63,7 +63,7 @@ fn patch_state(
         }));
     }
 
-    cam.pan_tilt().set(desired)?;
+    cam.pan_tilt().set_absolute(desired)?;
 
     let mut current;
 
@@ -94,7 +94,7 @@ fn patch_state(
 
 #[put("/state", format = "json", data = "<new_state>")]
 fn put_state(
-    camera: rocket::State<Mutex<visca::Camera>>,
+    camera: rocket::State<Mutex<Camera>>,
     new_state: Json<CameraStateRequest>,
 ) -> Result<Json<CameraStateResponse>> {
     let mut cam = camera.lock().unwrap();
@@ -116,7 +116,7 @@ fn put_state(
         }));
     }
 
-    cam.pan_tilt().set(desired)?;
+    cam.pan_tilt().set_absolute(desired)?;
 
     let mut current;
 
@@ -146,7 +146,7 @@ fn put_state(
 }
 
 fn main() -> Result<()> {
-    let camera = visca::Camera::open("/dev/cu.usbserial-AM00QCCD")?;
+    let camera = Camera::open("/dev/cu.usbserial-AM00QCCD")?;
 
     rocket::ignite()
         .manage(Mutex::new(camera))
