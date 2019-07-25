@@ -62,7 +62,7 @@ fn patch_state(
     let mut cam = camera.lock().unwrap();
 
     let input = new_state.into_inner();
-    let initial = cam.pan_tilt().get().unwrap();
+    let initial = cam.pan_tilt().get()?;
 
     let desired = PanTiltValue {
         pan: initial.pan + (input.camera.pan as i16),
@@ -109,7 +109,7 @@ fn put_state(
     let mut cam = camera.lock().unwrap();
 
     let input = new_state.into_inner();
-    let initial = cam.pan_tilt().get().unwrap();
+    let initial = cam.pan_tilt().get()?;
     let desired = input.camera.into();
 
     if initial == desired {
@@ -144,12 +144,21 @@ fn put_state(
     }))
 }
 
+#[post("/presets/<id>/recall")]
+fn recall_preset(camera: rocket::State<Mutex<Camera>>, id: u8) -> Result<()> {
+    let mut camera = camera.lock().unwrap();
+    camera.presets().recall(id)
+}
+
 fn main() -> Result<()> {
     let camera = Camera::open("/dev/cu.usbserial-AM00QCCD")?;
 
     rocket::ignite()
         .manage(Mutex::new(camera))
-        .mount("/", routes![get_state, put_state, patch_state])
+        .mount(
+            "/",
+            routes![get_state, put_state, patch_state, recall_preset],
+        )
         .launch();
 
     Ok(())
