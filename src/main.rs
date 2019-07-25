@@ -1,18 +1,36 @@
 #![feature(proc_macro_hygiene, decl_macro)]
 
+#[macro_use]
+extern crate rocket;
+
 use rocket_contrib::json::Json;
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use std::{thread, time};
-use visca::{Camera, Result};
-
-#[macro_use]
-extern crate rocket;
+use visca::{Camera, PanTiltValue, Result};
 
 #[derive(Serialize, Deserialize, Debug)]
 struct CameraState {
     tilt: i32,
     pan: i32,
+}
+
+impl From<PanTiltValue> for CameraState {
+    fn from(val: PanTiltValue) -> Self {
+        CameraState {
+            tilt: val.tilt as i32,
+            pan: val.pan as i32,
+        }
+    }
+}
+
+impl Into<PanTiltValue> for CameraState {
+    fn into(self) -> PanTiltValue {
+        PanTiltValue {
+            tilt: self.tilt as i16,
+            pan: self.pan as i16,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -31,10 +49,7 @@ fn get_state(camera: rocket::State<Mutex<Camera>>) -> Result<Json<CameraStateRes
 
     cam.pan_tilt().get().map(|state| {
         Json(CameraStateResponse {
-            camera: CameraState {
-                tilt: state.tilt as i32,
-                pan: state.pan as i32,
-            },
+            camera: state.into(),
         })
     })
 }
@@ -47,19 +62,16 @@ fn patch_state(
     let mut cam = camera.lock().unwrap();
 
     let input = new_state.into_inner();
-
     let initial = cam.pan_tilt().get().unwrap();
-    let desired = visca::PanTiltValue {
+
+    let desired = PanTiltValue {
         pan: initial.pan + (input.camera.pan as i16),
         tilt: initial.tilt + (input.camera.tilt as i16),
     };
 
     if initial == desired {
         return Ok(Json(CameraStateResponse {
-            camera: CameraState {
-                tilt: desired.tilt as i32,
-                pan: desired.pan as i32,
-            },
+            camera: desired.into(),
         }));
     }
 
@@ -85,10 +97,7 @@ fn patch_state(
     }
 
     Ok(Json(CameraStateResponse {
-        camera: CameraState {
-            tilt: current.tilt as i32,
-            pan: current.pan as i32,
-        },
+        camera: current.into(),
     }))
 }
 
@@ -100,19 +109,12 @@ fn put_state(
     let mut cam = camera.lock().unwrap();
 
     let input = new_state.into_inner();
-
     let initial = cam.pan_tilt().get().unwrap();
-    let desired = visca::PanTiltValue {
-        pan: input.camera.pan as i16,
-        tilt: input.camera.tilt as i16,
-    };
+    let desired = input.camera.into();
 
     if initial == desired {
         return Ok(Json(CameraStateResponse {
-            camera: CameraState {
-                tilt: desired.tilt as i32,
-                pan: desired.pan as i32,
-            },
+            camera: desired.into(),
         }));
     }
 
@@ -138,10 +140,7 @@ fn put_state(
     }
 
     Ok(Json(CameraStateResponse {
-        camera: CameraState {
-            tilt: current.tilt as i32,
-            pan: current.pan as i32,
-        },
+        camera: current.into(),
     }))
 }
 
