@@ -5,6 +5,8 @@ extern crate rocket;
 
 use rocket_contrib::json::Json;
 use serde::{Deserialize, Serialize};
+use std::env;
+use std::process;
 use std::sync::Mutex;
 use std::{thread, time};
 use visca::{Camera, PanTiltValue, Result};
@@ -151,7 +153,13 @@ fn recall_preset(camera: rocket::State<Mutex<Camera>>, id: u8) -> Result<()> {
 }
 
 fn main() -> Result<()> {
-    let camera = Camera::open("/dev/cu.usbserial-AM00QCCD")?;
+    let args: Vec<_> = env::args().collect();
+    if args.len() < 2 {
+        eprintln!("usage: {} [/dev/ttyUSB0]", &args[0]);
+        process::exit(1);
+    }
+
+    let camera = Camera::open(&args[1])?;
 
     rocket::ignite()
         .manage(Mutex::new(camera))
